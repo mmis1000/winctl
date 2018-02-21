@@ -1,19 +1,22 @@
 {
-  "name": "winctl",
-  "version": "1.0.2",
+  "name": "@mmis1000/winctl",
+  "version": "1.2.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "configure": "node-gyp configure",
     "build": "node-gyp build"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "thraaawn",
+  "contributors": [
+    "Mmis1000 <mmis10002@gmail.com> (http://mmis1000.me/)"
+  ],
+  "license": "MIT",
   "devDependencies": {
-    "nan": "^2.2.0",
     "node-gyp": "^3.2.1"
   },
   "dependencies": {
+    "nan": "^2.2.0",
     "bindings": "^1.2.1"
   },
   "os": [
@@ -22,7 +25,7 @@
   "gypfile": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/thraaawn/winctl.git"
+    "url": "https://github.com/mmis1000/winctl.git"
   },
   "keywords": [
     "windows",
@@ -31,7 +34,7 @@
     "desktop"
   ],
   "bugs": {
-    "url": "https://github.com/thraaawn/winctl/issues"
+    "url": "https://github.com/mmis1000/winctl/issues"
   },
-  "homepage": "https://github.com/thraaawn/winctl"
+  "homepage": "https://github.com/mmis1000/winctl"
 }
