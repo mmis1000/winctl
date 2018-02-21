@@ -39,10 +39,32 @@ winctl.FindByTitle("alc").then(window => {
 	window.setForegroundWindow();
 });
 
+win.moveToTop();
+
 // Iterate over all windows with a custom filter -> show all visible windows
-winctl.FindWindows(win => win.isVisible() && win.getTitle()).then(windows => {
+winctl.FindWindows(win => win.isVisible() && win.getTitle() && win.getParent() == null && win.isMainWindow())
+.then(windows => {
 	console.log("Visible windows:");
-	windows.sort((a,b) => a.getTitle().localeCompare(b.getTitle())).forEach(window => console.log(" - %s [classname=%s, pid=%d, hwnd=%d, parent=%d]", window.getTitle(), window.getClassName(), window.getPid(), window.getHwnd(), window.getParent()));
+    
+	var res = windows.sort((a,b) => a.getTitle().localeCompare(b.getTitle())).map(window => {
+        console.log(" - %s [processname=%s, classname=%s, pid=%d, hwnd=%d, parent=%d]", window.getTitle(), window.getProcessName(), window.getClassName(), window.getPid(), window.getHwnd(), window.getParent());
+        return window;
+    });
+    
+    // function loop(arr) {
+        // if (arr.length > 0) {
+            // arr[0].moveToTop();
+            // setTimeout(loop.bind(null, arr.slice(1), 500));
+        // } else {
+            // win.moveToTop();
+        // }
+    // }
+    
+    // loop(res);
+    
+})
+.catch((err)=>{
+    console.log(err)
 });
 /* -->
 Visible windows:
