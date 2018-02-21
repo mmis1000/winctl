@@ -16,8 +16,8 @@
     "node-gyp": "^3.2.1"
   },
   "dependencies": {
-    "nan": "^2.2.0",
-    "bindings": "^1.2.1"
+    "bindings": "^1.2.1",
+    "nan": "^2.2.1"
   },
   "os": [
     "win32"
