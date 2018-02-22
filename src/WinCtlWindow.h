@@ -39,6 +39,7 @@ private:
 	static NAN_METHOD(move);
 	static NAN_METHOD(moveRelative);
     static NAN_METHOD(moveToTop);
+    static NAN_METHOD(screenshot);
 	static NAN_METHOD(dimensions);
 
 	HWND windowHandle;

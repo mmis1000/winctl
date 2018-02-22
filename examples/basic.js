@@ -40,7 +40,7 @@ winctl.FindByTitle("alc").then(window => {
 });
 
 win.moveToTop();
-
+win.screenshot("test" + (new Date).getTime() + ".jpg");
 // Iterate over all windows with a custom filter -> show all visible windows
 winctl.FindWindows(win => win.isVisible() && win.getTitle() && win.getParent() == null && win.isMainWindow())
 .then(windows => {

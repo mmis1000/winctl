@@ -1,13 +1,19 @@
 #include "WinCtlWindow.h"
+
+#include <Unknwn.h>    
 #include <windows.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <psapi.h>
+#include <gdiplus.h>
 #include <iostream>
 #include <string>
 
-#pragma warning ( disable:4311 )
-#pragma warning ( disable:4302 )
-#pragma comment(lib, "psapi.lib")
+#pragma warning (disable:4311)
+#pragma warning (disable:4302)
+#pragma comment (lib, "psapi.lib")
+#pragma comment (lib, "Gdiplus.lib")
+using namespace Gdiplus;
 
 Nan::Persistent<v8::Function> Window::constructor;
 
@@ -16,6 +22,7 @@ NAN_MODULE_INIT(Window::Init) {
 	tpl->SetClassName(Nan::New("Window").ToLocalChecked());
 	tpl->InstanceTemplate()->SetInternalFieldCount(1);
 
+	Nan::SetPrototypeMethod(tpl, "exists", exists);
 	Nan::SetPrototypeMethod(tpl, "isVisible", isVisible);
 	Nan::SetPrototypeMethod(tpl, "isMainWindow", isMainWindow);
 	Nan::SetPrototypeMethod(tpl, "getTitle", getTitle);
@@ -33,6 +40,7 @@ NAN_MODULE_INIT(Window::Init) {
 	Nan::SetPrototypeMethod(tpl, "move", move);
 	Nan::SetPrototypeMethod(tpl, "moveRelative", moveRelative);
 	Nan::SetPrototypeMethod(tpl, "moveToTop", moveToTop);
+	Nan::SetPrototypeMethod(tpl, "screenshot", screenshot);
 	Nan::SetPrototypeMethod(tpl, "dimensions", dimensions);
 
 	constructor.Reset(Nan::GetFunction(tpl).ToLocalChecked());
@@ -308,7 +316,6 @@ NAN_METHOD(Window::moveRelative) {
 	MoveWindow(obj->windowHandle, x, y, w, h, true);
 }
 
-
 NAN_METHOD(Window::moveToTop) {
 	Window* obj = Nan::ObjectWrap::Unwrap<Window>(info.This());
     DWORD threadId = GetWindowThreadProcessId(obj->windowHandle, NULL);
@@ -326,6 +333,117 @@ NAN_METHOD(Window::moveToTop) {
     SetFocus(obj->windowHandle);
     SetActiveWindow(obj->windowHandle);
     RedrawWindow(obj->windowHandle, NULL, 0, RDW_FRAME | RDW_INVALIDATE | RDW_ALLCHILDREN);  // redraw to prevent the window blank.
+}
+
+int GetEncoderClsid(WCHAR *format, CLSID *pClsid)
+{
+    unsigned int num = 0,  size = 0;
+    GetImageEncodersSize(&num, &size);
+    if(size == 0) return -1;
+    ImageCodecInfo *pImageCodecInfo = (ImageCodecInfo *)(malloc(size));
+    if(pImageCodecInfo == NULL) return -1;
+    GetImageEncoders(num, size, pImageCodecInfo);
+    for(unsigned int j = 0; j < num; ++j)
+    {
+        if(wcscmp(pImageCodecInfo[j].MimeType, format) == 0){
+            *pClsid = pImageCodecInfo[j].Clsid;
+            free(pImageCodecInfo);
+            return j;
+        }    
+    }
+    free(pImageCodecInfo);
+    return -1;
+}
+
+NAN_METHOD(Window::screenshot) {
+    wchar_t filename[256] = L"test.jpg";
+    int copied = 0;
+    
+    if (info.Length() > 0 && info[0]->IsString()) {
+        wcscpy(filename, L"test1.jpg");
+        v8::Local<v8::String> temp = info[0]->ToString();
+        copied = temp->Write((uint16_t *)filename, 0, temp->Length() > 254 ? 254 : temp->Length());
+        filename[temp->Length()] = 0; 
+        
+        if (copied == 0) {
+            Nan::ThrowTypeError("cannot get filename!");
+            return;
+        }
+    }
+    
+	Window* obj = Nan::ObjectWrap::Unwrap<Window>(info.This());
+    HDC windowDC = GetDC(obj->windowHandle);
+    
+    if (windowDC == NULL) {
+        Nan::ThrowTypeError("cannot get dc!");
+        return;
+    }
+    
+    // get the dimention
+    RECT rcClient;
+    GetClientRect(obj->windowHandle, &rcClient);
+    
+    // init bitmap related variable
+    int width = rcClient.right - rcClient.left;
+    int height = rcClient.bottom - rcClient.top;
+    int nBPP = GetDeviceCaps(windowDC, BITSPIXEL);
+    HDC destDC = CreateCompatibleDC(windowDC);
+    BITMAPINFO bmiCapture = {
+        sizeof(BITMAPINFOHEADER), width, -height, 1, nBPP, BI_RGB, 0, 0, 0, 0, 0,
+    };
+    
+    LPBYTE lpCapture;
+    // create a container and take the screenshot
+    HBITMAP hBitmap = CreateDIBSection(windowDC, &bmiCapture,
+        DIB_PAL_COLORS, (LPVOID *)&lpCapture, NULL, 0);
+    
+    
+    // failed to take it
+    if(!hBitmap)
+    {
+        Nan::ThrowTypeError("cannot get hBitmap!");
+        DeleteDC(destDC);
+        DeleteDC(windowDC);
+        return;
+    }
+    
+    // copy the screenshot buffer
+    int nCapture;
+    nCapture = SaveDC(destDC);
+    SelectObject(destDC, hBitmap);
+    BitBlt(destDC, 0, 0, width, height, windowDC, 0, 0, SRCCOPY);
+    RestoreDC(destDC, nCapture);
+    DeleteDC(destDC);
+    DeleteDC(windowDC);
+    
+    // init the converter related variable
+    ULONG_PTR gdiplusToken;
+    GdiplusStartupInput gdiplusStartupInput;
+    GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+    Bitmap *pScreenShot;
+    int iRes;
+    CLSID imageCLSID;
+    ULONG uQuality = 90;
+    
+    // save the buffer to a file    
+    pScreenShot = new Bitmap(hBitmap, (HPALETTE)NULL);
+    EncoderParameters encoderParams;
+    encoderParams.Count = 1;
+    encoderParams.Parameter[0].NumberOfValues = 1;
+    encoderParams.Parameter[0].Guid  = EncoderQuality;
+    encoderParams.Parameter[0].Type  = EncoderParameterValueTypeLong;
+    encoderParams.Parameter[0].Value = &uQuality;
+    GetEncoderClsid(L"image/jpeg", &imageCLSID);
+    iRes = (pScreenShot->Save(filename, &imageCLSID, &encoderParams) == Ok);
+    
+    if (!iRes) {
+        Nan::ThrowTypeError("fail to save image!");
+    }
+    
+    delete pScreenShot;
+    DeleteObject(hBitmap);
+    GdiplusShutdown(gdiplusToken);
+    return;
 }
 
 NAN_METHOD(Window::dimensions) {
