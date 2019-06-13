@@ -13,7 +13,7 @@
   ],
   "license": "MIT",
   "devDependencies": {
-    "node-gyp": "^3.2.1"
+    "node-gyp": "^5.0.0"
   },
   "dependencies": {
     "bindings": "^1.2.1",
